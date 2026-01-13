@@ -25,6 +25,9 @@ if 'classifier' not in st.session_state:
 def load_model():
     """Load pre-trained fake news detection model from Hugging Face"""
     try:
+        # Get Hugging Face token from secrets
+        hf_token = st.secrets.get("HUGGINGFACE_TOKEN", None)
+        
         # Using a popular fake news detection model
         # You can replace this with your friend's model name
         model_name = "hamzab/roberta-fake-news-classification"
@@ -32,6 +35,7 @@ def load_model():
         classifier = pipeline(
             "text-classification",
             model=model_name,
+            token=hf_token,  # Add token here
             device=0 if torch.cuda.is_available() else -1
         )
         return classifier, None
