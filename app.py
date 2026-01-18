@@ -118,33 +118,82 @@ def analyze_with_ai(text):
         label = result[0]['label'].upper()
         confidence = result[0]['score']
         
+        # Show debug info in expander
+        with st.expander("🔍 Debug Info (Click to see model output)"):
+            st.write(f"**Raw Model Output:**")
+            st.json(result)
+            st.write(f"**Extracted Label:** {label}")
+            st.write(f"**Confidence:** {confidence:.4f}")
+        
         # Convert to credibility score (0-100)
-        if 'FAKE' in label or 'FALSE' in label:
+        # Check various label formats
+        if any(keyword in label for keyword in ['FAKE', 'FALSE', 'UNRELIABLE', 'LABEL_0']):
+            # This is FAKE news - lower score
             credibility_score = int((1 - confidence) * 100)
             category = "Likely Unreliable"
             color = "red"
             icon = "❌"
-        else:
+        elif any(keyword in label for keyword in ['REAL', 'TRUE', 'RELIABLE', 'LABEL_1']):
+            # This is REAL news - higher score
             credibility_score = int(confidence * 100)
             category = "Likely Reliable"
             color = "green"
             icon = "✅"
-        
-        if 40 <= credibility_score < 70:
+        else:
+            # Fallback based on confidence alone
+            credibility_score = int(confidence * 100)
             category = "Questionable - Verify"
             color = "orange"
             icon = "⚠️"
         
+        # Ensure score is in valid range
+        credibility_score = max(0, min(100, credibility_score))
+        
+        # Adjust category based on final score
+        if credibility_score >= 70:
+            category = "Likely Reliable"
+            color = "green"
+            icon = "✅"
+        elif credibility_score >= 40:
+            category = "Questionable - Verify"
+            color = "orange"
+            icon = "⚠️"
+        else:
+            category = "Likely Unreliable"
+            color = "red"
+            icon = "❌"
+        
+        # Get pattern analysis for additional context
         pattern_score, indicators = analyze_patterns(text)
         
+        # Combine AI and pattern scores (70% AI, 30% pattern)
+        combined_score = int(credibility_score * 0.7 + pattern_score * 0.3)
+        combined_score = max(0, min(100, combined_score))
+        
+        # Update category based on combined score
+        if combined_score >= 70:
+            final_category = "Likely Reliable"
+            final_color = "green"
+            final_icon = "✅"
+        elif combined_score >= 40:
+            final_category = "Questionable - Verify"
+            final_color = "orange"
+            final_icon = "⚠️"
+        else:
+            final_category = "Likely Unreliable"
+            final_color = "red"
+            final_icon = "❌"
+        
         return {
-            'score': credibility_score,
-            'category': category,
-            'color': color,
-            'icon': icon,
+            'score': combined_score,
+            'category': final_category,
+            'color': final_color,
+            'icon': final_icon,
             'confidence': confidence,
             'ai_label': label,
-            'indicators': indicators
+            'indicators': indicators,
+            'ai_score': credibility_score,
+            'pattern_score': pattern_score
         }
         
     except Exception as e:
